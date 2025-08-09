@@ -1,0 +1,166 @@
+<!--
+  Basic Calculator (single-file)
+  Save this file as `index.html` and upload to your GitHub repository root.
+  - Works by clicking buttons or using your keyboard (numbers, + - * /, Enter for =, Backspace, Esc to clear)
+  - If you want changes (theme, extra functions), tell me and I'll update.
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Basic Calculator</title>
+  <style>
+    :root{--bg:#0f172a;--panel:#0b1220;--accent:#10b981;--muted:#94a3b8;--btn:#111827}
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071129 0%, #071b2a 100%);color:#e6eef6}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:350px;max-width:96vw;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:16px;padding:18px;box-shadow:0 6px 30px rgba(2,6,23,0.7);}
+    h1{font-size:18px;margin:0 0 12px 0;color:var(--accent);text-align:center}
+    .calculator{background:var(--panel);padding:14px;border-radius:12px}
+    .display{width:100%;font-size:28px;padding:12px;border-radius:8px;border:0;margin-bottom:12px;background:rgba(255,255,255,0.03);color:#f8fafc;text-align:right}
+    .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    button{padding:14px;border-radius:10px;border:0;font-size:18px;cursor:pointer;user-select:none}
+    .btn-ops{background:transparent;color:var(--accent);border:1px solid rgba(16,185,129,0.12)}
+    .btn-num{background:rgba(255,255,255,0.03);color:#e6eef6}
+    .btn-wide{grid-column:span 2}
+    .btn-action{background:#ef4444;color:white}
+    .note{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+    @media (max-width:420px){.card{width:320px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Basic Calculator</h1>
+      <div class="calculator" role="application" aria-label="Basic calculator">
+        <input id="display" class="display" type="text" aria-live="polite" value="0" readonly />
+        <div class="keys">
+          <button class="btn-action" data-action="clear" title="Clear">C</button>
+          <button class="btn-ops" data-action="back" title="Backspace">⌫</button>
+          <button class="btn-ops" data-value="%" title="Percent">%</button>
+          <button class="btn-ops" data-value="/">÷</button>
+
+          <button class="btn-num" data-value="7">7</button>
+          <button class="btn-num" data-value="8">8</button>
+          <button class="btn-num" data-value="9">9</button>
+          <button class="btn-ops" data-value="*">×</button>
+
+          <button class="btn-num" data-value="4">4</button>
+          <button class="btn-num" data-value="5">5</button>
+          <button class="btn-num" data-value="6">6</button>
+          <button class="btn-ops" data-value="-">−</button>
+
+          <button class="btn-num" data-value="1">1</button>
+          <button class="btn-num" data-value="2">2</button>
+          <button class="btn-num" data-value="3">3</button>
+          <button class="btn-ops" data-value="+">+</button>
+
+          <button class="btn-num btn-wide" data-value="0">0</button>
+          <button class="btn-num" data-value=".">.</button>
+          <button class="btn-ops" data-action="equals" title="Equals">=</button>
+        </div>
+      </div>
+      <p class="note">You can also use your keyboard: numbers, + - * /, Enter(=), Backspace, Esc(C).</p>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const display = document.getElementById('display');
+      const keys = document.querySelector('.keys');
+      let expr = '';
+
+      function update(){ display.value = expr || '0'; }
+
+      function isOperator(ch){ return ['+','-','*','/'].includes(ch); }
+
+      function append(v){
+        // percent handling
+        if(v === '%'){
+          // convert last number to percentage
+          // find last operator
+          const idx = Math.max(expr.lastIndexOf('+'), expr.lastIndexOf('-'), expr.lastIndexOf('*'), expr.lastIndexOf('/'));
+          const last = expr.slice(idx + 1) || '0';
+          const base = idx === -1 ? '' : expr.slice(0, idx + 1);
+          const num = parseFloat(last) || 0;
+          expr = base + (num / 100).toString();
+          update();
+          return;
+        }
+
+        if(isOperator(v)){
+          if(!expr) return; // don't start with operator
+          const last = expr[expr.length-1];
+          if(isOperator(last)){
+            // replace last operator
+            expr = expr.slice(0, -1) + v;
+          } else {
+            expr += v;
+          }
+          update();
+          return;
+        }
+
+        if(v === '.'){
+          // prevent multiple decimals in current number
+          const idx = Math.max(expr.lastIndexOf('+'), expr.lastIndexOf('-'), expr.lastIndexOf('*'), expr.lastIndexOf('/'));
+          const last = expr.slice(idx + 1);
+          if(last.includes('.')) return;
+          if(!last) expr += '0.'; else expr += '.';
+          update();
+          return;
+        }
+
+        // number
+        expr += v;
+        update();
+      }
+
+      function clearAll(){ expr = ''; update(); }
+      function back(){ expr = expr.slice(0, -1); update(); }
+
+      function compute(){
+        if(!expr) return;
+        const last = expr[expr.length-1];
+        if(isOperator(last)) expr = expr.slice(0, -1);
+
+        try{
+          // evaluate expression safely using Function
+          // parentheses and basic operators are supported
+          const result = Function('"use strict";return (' + expr + ')')();
+          if(Number.isFinite(result)) expr = String(result);
+          else expr = 'Error';
+        } catch(e){ expr = 'Error'; }
+        update();
+      }
+
+      keys.addEventListener('click', e => {
+        const button = e.target.closest('button');
+        if(!button) return;
+        const v = button.dataset.value;
+        const action = button.dataset.action;
+        if(action === 'clear') clearAll();
+        else if(action === 'back') back();
+        else if(action === 'equals') compute();
+        else if(v) append(v);
+      });
+
+      // keyboard support
+      document.addEventListener('keydown', e => {
+        if(e.key >= '0' && e.key <= '9') append(e.key);
+        else if(['+','-','*','/'].includes(e.key)) append(e.key);
+        else if(e.key === 'Enter' || e.key === '='){ e.preventDefault(); compute(); }
+        else if(e.key === 'Backspace'){ back(); }
+        else if(e.key === 'Escape'){ clearAll(); }
+        else if(e.key === '.') append('.');
+        else if(e.key === '%') append('%');
+      });
+
+      // initialize
+      update();
+    })();
+  </script>
+</body>
+</html>
